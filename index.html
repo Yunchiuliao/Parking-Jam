@@ -1,0 +1,880 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bus Parking Jam 3D - Ultimate Edition</title>
+    <style>
+        :root {
+            --bg-page: #f0f4f8;
+            --bus-red: #ff0044;
+            --bus-blue: #0066ff;
+            --bus-green: #00cc66;
+            --bus-yellow: #ffcc00;
+            --bus-purple: #cc00ff;
+            --asphalt: #cbd5e1;
+            --parking-line: #ffffff;
+            --accent-primary: #2563eb;
+            --text-main: #0f172a;
+            --cell-size: 52px;
+            --gap: 6px;
+            --depth: 35px;
+            /* Increased for chunkiness */
+            --wait-zone-bg: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: 'Outfit', 'Segoe UI', sans-serif;
+            background-color: var(--bg-page);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            height: 100vh;
+            overflow: hidden;
+            background-image: radial-gradient(#cbd5e1 2px, transparent 2px);
+            background-size: 40px 40px;
+        }
+
+        #game-container {
+            width: 100%;
+            max-width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            padding: 10px;
+            height: 100%;
+            perspective: 1500px;
+        }
+
+        /* --- MART Building Scene --- */
+        #environment-top {
+            width: 100%;
+            height: 120px;
+            position: relative;
+            background: #cbd5e1;
+            border-bottom: 4px solid #334155;
+            display: flex;
+            align-items: flex-end;
+            margin-bottom: 15px;
+        }
+
+        .plants {
+            position: absolute;
+            bottom: 10px;
+            left: 10px;
+            width: 80px;
+            height: 60px;
+            display: flex;
+            align-items: flex-end;
+            gap: -10px;
+        }
+
+        .plant {
+            width: 35px;
+            height: 35px;
+            background: #22c55e;
+            border-radius: 50%;
+            border: 3.5px solid #14532d;
+            position: relative;
+        }
+
+        .plant-2 {
+            width: 45px;
+            height: 45px;
+            margin-left: -15px;
+            background: #15803d;
+        }
+
+        #mart-building {
+            flex-grow: 1;
+            height: 100px;
+            background: #ffffff;
+            border: 4px solid #334155;
+            border-bottom: none;
+            border-radius: 12px 12px 0 0;
+            margin: 0 40px 0 80px;
+            position: relative;
+            box-shadow: inset -10px 0 20px rgba(0, 0, 0, 0.05);
+        }
+
+        .building-roof {
+            width: calc(100% + 16px);
+            height: 15px;
+            background: #64748b;
+            border: 4px solid #334155;
+            position: absolute;
+            top: -10px;
+            left: -8px;
+            border-radius: 4px;
+            z-index: 5;
+        }
+
+        .building-windows {
+            display: flex;
+            gap: 8px;
+            padding: 15px 10px 0;
+        }
+
+        .window-pane {
+            flex: 1;
+            height: 25px;
+            background: #e2e8f0;
+            border: 3px solid #334155;
+            border-radius: 4px;
+        }
+
+        #mart-entrance {
+            position: absolute;
+            bottom: 0;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 70px;
+            height: 45px;
+            background: #f1f5f9;
+            border: 4px solid #334155;
+            border-bottom: none;
+            border-radius: 6px 6px 0 0;
+        }
+
+        .door-step {
+            position: absolute;
+            bottom: -4px;
+            width: 110%;
+            height: 8px;
+            background: #94a3b8;
+            border: 3px solid #334155;
+            border-radius: 4px;
+        }
+
+        #mart-vertical-sign {
+            width: 35px;
+            height: 110px;
+            background: #ff0044;
+            border: 4px solid #334155;
+            border-radius: 6px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: space-around;
+            padding: 10px 0;
+            font-weight: 950;
+            color: white;
+            font-size: 14px;
+            line-height: 1;
+            box-shadow: 6px 0 0 rgba(0, 0, 0, 0.1);
+            margin-bottom: 5px;
+            margin-right: 5px;
+        }
+
+        #status {
+            position: absolute;
+            top: 10px;
+            left: 105px;
+            background: #ff0044;
+            color: white;
+            padding: 2px 10px;
+            border-radius: 20px;
+            font-weight: 900;
+            font-size: 0.8rem;
+            border: 2px solid white;
+            z-index: 20;
+        }
+
+        #passenger-queue-container {
+            width: 100%;
+            height: 48px;
+            position: absolute;
+            bottom: 5px;
+            /* Shifted up to sit on sidewalk */
+            z-index: 20;
+            /* Above sidewalk */
+            display: flex;
+            justify-content: center;
+        }
+
+        .sidewalk {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            height: 30px;
+            background: #475569;
+            /* Sidewalk color */
+            border-top: 3px solid #334155;
+            z-index: 5;
+        }
+
+        .sidewalk::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: linear-gradient(90deg, transparent 96%, rgba(0, 0, 0, 0.1) 96%);
+            background-size: 40px 100%;
+        }
+
+        #passenger-queue {
+            display: flex;
+            gap: 2px;
+            align-items: center;
+            transform: rotateX(20deg);
+            transform-style: preserve-3d;
+        }
+
+        /* Stickman Base */
+        .passenger-3d {
+            width: 18px;
+            height: 35px;
+            position: relative;
+            transform-style: preserve-3d;
+            transition: all 0.4s cubic-bezier(0.5, 0, 0.5, 1);
+        }
+
+        .stickman-head {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            background: inherit;
+            position: absolute;
+            top: 0;
+            left: 3px;
+            border: 2px solid rgba(0, 0, 0, 0.2);
+        }
+
+        .stickman-body {
+            width: 11px;
+            height: 17px;
+            background: inherit;
+            position: absolute;
+            top: 11px;
+            left: 3.5px;
+            border-radius: 3px;
+            border: 2.2px solid rgba(0, 0, 0, 0.2);
+        }
+
+        /* Docking Area */
+        #docking-area {
+            display: grid;
+            grid-template-columns: repeat(7, 1fr);
+            gap: 12px;
+            padding: 20px 10px;
+            height: 115px;
+            background: #94a3b8;
+            border-radius: 20px;
+            border: 5px solid #334155;
+            transform: rotateX(15deg);
+            box-shadow: 0 12px 0 #475569;
+            margin-top: 5px;
+        }
+
+        .dock-slot {
+            background: #334155;
+            border-radius: 8px;
+            border: 3px dashed rgba(255, 255, 255, 0.4);
+            transform: skewX(-15deg);
+            height: 100%;
+            position: relative;
+            transition: transform 0.5s;
+        }
+
+        /* Parking Lot */
+        #parking-lot-view {
+            flex-grow: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-top: 10px;
+        }
+
+        #parking-lot {
+            position: relative;
+            width: calc(var(--cell-size) * 6 + var(--gap) * 7);
+            height: calc(var(--cell-size) * 6 + var(--gap) * 7);
+            background-color: var(--asphalt);
+            display: grid;
+            grid-template-columns: repeat(6, var(--cell-size));
+            grid-template-rows: repeat(6, var(--cell-size));
+            gap: var(--gap);
+            padding: var(--gap);
+            border-radius: 15px;
+            box-shadow: 0 15px 30px rgba(0, 0, 0, 0.1);
+            border: 8px solid #334155;
+            /* Flattened view to fix glitches */
+            transform: none;
+            transform-style: flat;
+        }
+
+        .cell {
+            border-radius: 5px;
+            border: 3px dashed rgba(255, 255, 255, 0.5);
+        }
+
+        /* Vehicle & Seats */
+        .bus-3d {
+            position: absolute;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.19, 1, 0.22, 1);
+            z-index: 50;
+            border: 3.5px solid #000;
+            /* Bold Outline */
+            border-radius: 12px;
+            display: flex;
+            flex-direction: column;
+            padding: 4px;
+            /* 2.5D Depth Simulation */
+            /* 20% darker for 3D depth */
+            transform-origin: top;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .bus-left,
+        .bus-right {
+            width: var(--depth);
+            filter: brightness(0.7);
+            /* Even darker for side shading */
+            transform-origin: left;
+            border-radius: 0 0 10px 10px;
+        }
+
+        .bus-red {
+            background: var(--bus-red);
+            border-bottom-color: #cc0033;
+        }
+
+        .bus-blue {
+            background: var(--bus-blue);
+            border-bottom-color: #0052cc;
+        }
+
+        .bus-green {
+            background: var(--bus-green);
+            border-bottom-color: #00a352;
+        }
+
+        .bus-yellow {
+            background: var(--bus-yellow);
+            border-bottom-color: #ccaa00;
+        }
+
+        .bus-purple {
+            background: var(--bus-purple);
+            border-bottom-color: #a300cc;
+        }
+
+        .windshield {
+            width: 85%;
+            height: 35%;
+            background: #ffffff;
+            border-radius: 8px 8px 4px 4px;
+            margin: 2px auto 4px;
+            border: 3px solid #000;
+            position: relative;
+        }
+
+        /* Seat Dots Removed */
+
+        .direction-arrow {
+            position: absolute;
+            top: 68%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            pointer-events: none;
+            z-index: 100;
+        }
+
+        .arrow-icon {
+            width: 24px;
+            height: 12px;
+            background: white;
+            /* Bold white arrow */
+            position: relative;
+            border-radius: 3px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+        }
+
+        .arrow-icon::after {
+            content: '';
+            position: absolute;
+            border: 11px solid transparent;
+            border-left-color: white;
+            /* Forward pointing triangle */
+            left: 100%;
+            top: -5px;
+        }
+
+
+        .bus-3d.horizontal .bus-front {
+            width: 100%;
+            transform: rotateX(-90deg);
+            top: 100%;
+        }
+
+        .bus-3d.horizontal .bus-back {
+            width: 100%;
+            transform: rotateX(-90deg);
+            top: 0;
+        }
+
+        .bus-3d.horizontal .bus-left {
+            height: 100%;
+            transform: rotateY(90deg);
+            left: 0;
+        }
+
+        .bus-3d.horizontal .bus-right {
+            height: 100%;
+            transform: rotateY(90deg);
+            left: 100%;
+        }
+
+        .bus-3d.vertical .bus-front {
+            width: 100%;
+            transform: rotateX(-90deg);
+            top: 100%;
+        }
+
+        .bus-3d.vertical .bus-back {
+            width: 100%;
+            transform: rotateX(-90deg);
+            top: 0;
+        }
+
+        .bus-3d.vertical .bus-left {
+            height: 100%;
+            transform: rotateY(90deg);
+            left: 0;
+        }
+
+        .bus-3d.vertical .bus-right {
+            height: 100%;
+            transform: rotateY(90deg);
+            left: 100%;
+        }
+
+        #overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(15px);
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+
+        #overlay h1 {
+            font-size: 4rem;
+            font-weight: 900;
+            margin-bottom: 30px;
+        }
+
+        #overlay button {
+            padding: 22px 70px;
+            font-size: 1.6rem;
+            background: var(--accent-primary);
+            color: white;
+            border: none;
+            border-radius: 100px;
+            font-weight: 950;
+            box-shadow: 0 10px 0 #1e40af;
+        }
+
+        /* Animation: Flying Passenger */
+        .flying {
+            position: fixed !important;
+            z-index: 2000 !important;
+            pointer-events: none;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) !important;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="game-container">
+        <div id="environment-top">
+            <div id="status">Level <span id="level-display">1</span> | 剩餘: <span id="p-count">0</span></div>
+            <div class="plants">
+                <div class="plant"></div>
+                <div class="plant plant-2"></div>
+            </div>
+            <div id="mart-building">
+                <div class="building-roof"></div>
+                <div class="building-windows">
+                    <div class="window-pane"></div>
+                    <div class="window-pane"></div>
+                    <div class="window-pane"></div>
+                </div>
+                <div id="mart-entrance">
+                    <div class="door-step"></div>
+                </div>
+            </div>
+            <div class="sidewalk"></div>
+            <div id="mart-vertical-sign"><span>M</span><span>A</span><span>R</span><span>T</span></div>
+            <div id="passenger-queue-container">
+                <div id="passenger-queue"></div>
+            </div>
+        </div>
+
+        <div id="docking-area">
+            <div class="dock-slot" data-index="0"></div>
+            <div class="dock-slot" data-index="1"></div>
+            <div class="dock-slot" data-index="2"></div>
+            <div class="dock-slot" data-index="3"></div>
+            <div class="dock-slot" data-index="4"></div>
+            <div class="dock-slot" data-index="5"></div>
+            <div class="dock-slot" data-index="6"></div>
+        </div>
+
+        <div id="parking-lot-view">
+            <div id="parking-lot">
+                <script>for (let i = 0; i < 36; i++) document.write('<div class="cell"></div>');</script>
+            </div>
+        </div>
+    </div>
+
+    <div id="overlay">
+        <h1 id="message">GAME OVER</h1>
+        <button onclick="location.reload()">PLAY AGAIN</button>
+    </div>
+
+    <script>
+        const GRID_SIZE = 6; const MAX_DOCK_SLOTS = 7;
+        const colorMap = {
+            'red': '#ff0044',
+            'blue': '#0066ff',
+            'green': '#00cc66',
+            'yellow': '#ffcc00',
+            'purple': '#cc00ff'
+        };
+
+        let passengers = []; let buses = []; let dockingArea = []; let isProcessing = false;
+        let currentLevel = 1;
+        const parkingLot = document.getElementById('parking-lot');
+        const passengerQueueEl = document.getElementById('passenger-queue');
+        const dockSlots = document.querySelectorAll('.dock-slot');
+        const overlay = document.getElementById('overlay');
+
+        function generateLevel(level) {
+            buses = [];
+            let tempBuses = [];
+            const colors = ['red', 'blue', 'green', 'yellow', 'purple'];
+            const targetBuses = Math.min(13 + Math.floor(level / 2), 18);
+
+            let attempts = 0;
+            let idCounter = 1;
+
+            // Phase 1: Fill the grid densely
+            const grid = Array(GRID_SIZE).fill().map(() => Array(GRID_SIZE).fill(null));
+            while (attempts < 1000 && tempBuses.length < 24) {
+                attempts++;
+                const isHorizontal = Math.random() > 0.5;
+                const len = Math.random() > 0.3 ? 2 : 3;
+                const x = Math.floor(Math.random() * (isHorizontal ? GRID_SIZE - len + 1 : GRID_SIZE));
+                const y = Math.floor(Math.random() * (isHorizontal ? GRID_SIZE : GRID_SIZE - len + 1));
+
+                let canPlace = true;
+                for (let i = 0; i < len; i++) {
+                    const cx = isHorizontal ? x + i : x;
+                    const cy = isHorizontal ? y : y + i;
+                    if (grid[cy][cx] !== null) { canPlace = false; break; }
+                }
+
+                if (canPlace) {
+                    const dir = isHorizontal ? (Math.random() > 0.5 ? 'RIGHT' : 'LEFT') : (Math.random() > 0.5 ? 'DOWN' : 'UP');
+                    const b = { id: idCounter++, x, y, len, dir, color: colors[Math.floor(Math.random() * colors.length)], inDock: false, capacity: len === 3 ? 6 : 3, boarding: 0 };
+                    for (let i = 0; i < len; i++) grid[isHorizontal ? y : y + i][isHorizontal ? x + i : x] = b.id;
+                    tempBuses.push(b);
+                }
+            }
+
+            // Phase 2: Solver-based Pruning (ensure 100% solvability)
+            // We simulate the game to see which buses can actually exit.
+            let board = JSON.parse(JSON.stringify(tempBuses));
+            let solvableIds = new Set();
+            let changed = true;
+
+            while (changed) {
+                changed = false;
+                for (let i = board.length - 1; i >= 0; i--) {
+                    const b = board[i];
+                    // Temporarily set buses as the current board to reuse canMoveOut
+                    const oldBuses = buses;
+                    buses = board;
+                    if (canMoveOut(b)) {
+                        solvableIds.add(b.id);
+                        board.splice(i, 1);
+                        changed = true;
+                    }
+                    buses = oldBuses;
+                }
+            }
+
+            // Phase 3: Selection
+            // Only keep buses that were proven solvable
+            let finalBuses = tempBuses.filter(b => solvableIds.has(b.id));
+
+            // Limit to target density but keep them diverse
+            if (finalBuses.length > targetBuses) {
+                finalBuses = finalBuses.sort(() => Math.random() - 0.5).slice(0, targetBuses);
+            }
+
+            buses = finalBuses;
+            return buses;
+        }
+
+        function init() {
+            dockingArea = [];
+            isProcessing = false;
+            updateDockUI();
+
+            generateLevel(currentLevel);
+            document.getElementById('level-display').innerText = currentLevel;
+
+            const colorGroups = [];
+            buses.forEach(b => {
+                const group = [];
+                for (let i = 0; i < b.capacity; i++) group.push(b.color);
+                colorGroups.push(group);
+            });
+            const shuffledGroups = colorGroups.sort(() => Math.random() - 0.5);
+            passengers = shuffledGroups.flat();
+
+            updatePassengerQueue();
+            renderBuses();
+        }
+
+        function createPassengerEl(color) {
+            const p = document.createElement('div');
+            p.className = 'passenger-3d';
+            p.innerHTML = `<div class="stickman-head" style="background:${colorMap[color]}"></div><div class="stickman-body" style="background:${colorMap[color]}"></div>`;
+            return p;
+        }
+
+        function updatePassengerQueue() {
+            passengerQueueEl.innerHTML = '';
+            passengers.slice(0, 15).forEach((color, index) => {
+                const p = createPassengerEl(color);
+                p.style.opacity = 1 - (index * 0.05);
+                passengerQueueEl.appendChild(p);
+            });
+            document.getElementById('p-count').innerText = passengers.length;
+        }
+
+        function getBusHTML(bus) {
+            let rotation = 0;
+            if (bus.dir === 'RIGHT') rotation = 0;
+            if (bus.dir === 'DOWN') rotation = 90;
+            if (bus.dir === 'LEFT') rotation = 180;
+            if (bus.dir === 'UP') rotation = 270;
+
+            return `
+                <div class="windshield" style="${(bus.dir === 'UP' || bus.dir === 'LEFT') ? 'transform:rotate(180deg)' : ''}"></div>
+                <div class="direction-arrow" style="transform: translate(-50%, -50%) rotate(${rotation}deg)">
+                    <div class="arrow-icon"></div>
+                </div>
+            `;
+        }
+
+        function renderBuses() {
+            document.querySelectorAll('.bus-3d').forEach(el => el.remove());
+            buses.forEach(bus => {
+                if (bus.inDock) return;
+                const isH = bus.dir === 'LEFT' || bus.dir === 'RIGHT';
+                const el = document.createElement('div');
+                el.className = `bus-3d bus-${bus.color} ${isH ? 'horizontal' : 'vertical'}`;
+                el.style.width = (isH ? (bus.len * 52 + (bus.len - 1) * 6) : 52) + 'px';
+                el.style.height = (!isH ? (bus.len * 52 + (bus.len - 1) * 6) : 52) + 'px';
+                el.style.left = (bus.x * 58 + 6) + 'px'; el.style.top = (bus.y * 58 + 6) + 'px';
+                el.dataset.id = bus.id;
+                el.innerHTML = getBusHTML(bus);
+                el.onclick = () => tryMoveBus(bus);
+                parkingLot.appendChild(el);
+            });
+        }
+
+        function isCellOccupied(x, y, excludeId) {
+            return buses.some(b => {
+                if (b.id === excludeId || b.inDock) return false;
+                const isH = b.dir === 'LEFT' || b.dir === 'RIGHT';
+                if (isH) return y === b.y && x >= b.x && x < b.x + b.len;
+                else return x === b.x && y >= b.y && y < b.y + b.len;
+            });
+        }
+
+        function canMoveOut(bus) {
+            let dx = 0, dy = 0;
+            let frontX = (bus.dir === 'RIGHT') ? bus.x + bus.len : (bus.dir === 'LEFT' ? bus.x - 1 : bus.x);
+            let frontY = (bus.dir === 'DOWN') ? bus.y + bus.len : (bus.dir === 'UP' ? bus.y - 1 : bus.y);
+
+            if (bus.dir === 'RIGHT') dx = 1;
+            else if (bus.dir === 'LEFT') dx = -1;
+            else if (bus.dir === 'DOWN') dy = 1;
+            else if (bus.dir === 'UP') dy = -1;
+
+            const isFree = (x, y) => {
+                if (x < 0 || x >= GRID_SIZE || y < 0 || y >= GRID_SIZE) return true; // Outside is always free
+                return !isCellOccupied(x, y, bus.id);
+            };
+
+            // Condition A: Clear all the way to border
+            let canStraight = true;
+            let cx = frontX, cy = frontY;
+            while (cx >= 0 && cx < GRID_SIZE && cy >= 0 && cy < GRID_SIZE) {
+                if (!isFree(cx, cy)) {
+                    canStraight = false;
+                    break;
+                }
+                cx += dx;
+                cy += dy;
+            }
+            if (canStraight) return true;
+
+            // Condition B: Pull out 1 slot and have turn space
+            // Only check if we are not already at the edge (where Condition A would have caught it)
+            if (frontX >= 0 && frontX < GRID_SIZE && frontY >= 0 && frontY < GRID_SIZE) {
+                if (isFree(frontX, frontY)) {
+                    if (dx !== 0) { // Horizontal movement, check Above/Below
+                        if (isFree(frontX, frontY - 1) || isFree(frontX, frontY + 1)) return true;
+                    } else if (dy !== 0) { // Vertical movement, check Left/Right
+                        if (isFree(frontX - 1, frontY) || isFree(frontX + 1, frontY)) return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        function tryMoveBus(bus) {
+            if (isProcessing || dockingArea.length >= MAX_DOCK_SLOTS) return;
+            if (canMoveOut(bus)) {
+                bus.inDock = true; dockingArea.push(bus);
+                renderBuses(); updateDockUI(); checkAndProcessMatch();
+            } else {
+                const el = document.querySelector(`.bus-3d[data-id="${bus.id}"]`);
+                if (el) { el.style.transform = 'translateZ(10px) rotateZ(3deg)'; setTimeout(() => el.style.transform = '', 100); }
+            }
+        }
+
+        function updateDockUI() {
+            dockSlots.forEach((slot, i) => {
+                slot.innerHTML = '';
+                if (dockingArea[i]) {
+                    const b = dockingArea[i];
+                    const el = document.createElement('div');
+                    el.className = `bus-3d bus-${b.color} horizontal`;
+                    el.style.width = '100%'; el.style.height = '60px';
+                    el.style.transform = 'rotateX(-20deg) translateZ(10px) scale(0.8) skewX(15deg)';
+                    el.innerHTML = getBusHTML(b);
+                    slot.appendChild(el);
+                }
+            });
+        }
+
+        async function checkAndProcessMatch() {
+            if (isProcessing) return;
+            if (passengers.length === 0) {
+                if (dockingArea.length === 0) {
+                    currentLevel++;
+                    showOverlay(`LEVEL ${currentLevel - 1} 成功！`, "NEXT LEVEL", () => {
+                        overlay.style.display = 'none';
+                        init();
+                    });
+                    return;
+                }
+                return;
+            }
+
+            const cur = passengers[0];
+            const mIdx = dockingArea.findIndex(b => b.color === cur && b.boarding < b.capacity);
+
+            if (mIdx !== -1) {
+                isProcessing = true;
+                const bus = dockingArea[mIdx];
+                const pEl = passengerQueueEl.querySelector('.passenger-3d');
+
+                if (pEl) {
+                    // Flying Animation
+                    const rect = pEl.getBoundingClientRect();
+                    const dockEl = dockSlots[mIdx].querySelector('.bus-3d');
+                    const targetRect = dockEl.getBoundingClientRect();
+
+                    const flyEl = pEl.cloneNode(true);
+                    flyEl.classList.add('flying');
+                    flyEl.style.left = rect.left + 'px';
+                    flyEl.style.top = rect.top + 'px';
+                    document.body.appendChild(flyEl);
+
+                    pEl.style.visibility = 'hidden';
+
+                    requestAnimationFrame(() => {
+                        flyEl.style.left = (targetRect.left + targetRect.width / 2 - 9) + 'px';
+                        flyEl.style.top = (targetRect.top + targetRect.height / 2 - 15) + 'px';
+                        flyEl.style.transform = 'scale(0.5) rotateZ(360deg)';
+                    });
+
+                    await new Promise(r => setTimeout(r, 500));
+                    flyEl.remove();
+                }
+
+                bus.boarding++;
+                passengers.shift();
+                updatePassengerQueue();
+                updateDockUI();
+
+                // Check if full to depart
+                if (bus.boarding === bus.capacity) {
+                    await new Promise(r => setTimeout(r, 400));
+                    const dockEl = dockSlots[mIdx].querySelector('.bus-3d');
+                    if (dockEl) {
+                        dockEl.style.transform += ' translateX(500px) scale(0.5)';
+                        dockEl.style.opacity = '0';
+                    }
+                    await new Promise(r => setTimeout(r, 400));
+                    dockingArea.splice(mIdx, 1);
+                    updateDockUI();
+                    isProcessing = false;
+                    checkAndProcessMatch();
+                } else {
+                    isProcessing = false;
+                    setTimeout(checkAndProcessMatch, 100);
+                }
+                if (dockingArea.length === MAX_DOCK_SLOTS) {
+                    showOverlay("FULL!", "RESTART LEVEL", () => {
+                        overlay.style.display = 'none';
+                        init();
+                    });
+                }
+            }
+        }
+
+        function showOverlay(msg, btnText, btnAction) {
+            document.getElementById('message').innerText = msg;
+            const btn = overlay.querySelector('button');
+            btn.innerText = btnText;
+            btn.onclick = btnAction;
+            overlay.style.display = 'flex';
+        }
+        init();
+    </script>
+</body>
+
+</html>
